@@ -9,14 +9,15 @@ import SwiftUI
 
 struct CalendarView: UIViewRepresentable {
     
-    @StateObject private var viewModel = CalendarPlanningViewModel()
+    @ObservedObject var viewModel: CalendarPlanningViewModel
     
     // Representable
     typealias UIViewType = UICalendarView
     
     func makeUIView(context: Context) -> UICalendarView {
         let view = UICalendarView()
-        view.availableDateRange = DateInterval(start: Date(), end: viewModel.twoYearsFromToday)
+        view.tintColor = .systemCyan
+        view.availableDateRange = DateInterval(start: viewModel.calendarStartingDate, end: viewModel.calendarEndingDate)
         view.timeZone = TimeZone.current
         view.delegate = context.coordinator
         
@@ -49,25 +50,26 @@ struct CalendarView: UIViewRepresentable {
 
         @MainActor
         func calendarView(_ calendarView: UICalendarView, decorationFor dateComponents: DateComponents) -> UICalendarView.Decoration? {
-            guard parent.viewModel.canSelectWeekdays(with: dateComponents),
-                  parent.viewModel.isFutureDate(given: dateComponents) else {
+            guard parent.viewModel.populateSelectableDates(given: dateComponents),
+                  parent.viewModel.isDateInsideTimeInterval(given: dateComponents) else {
                 return nil
             }
+            
             return UICalendarView.Decoration.customView {
                 let view = UILabel()
-                view.text = "\(self.parent.viewModel.numberOfAvailabilities(given: dateComponents)) left"
+                view.text = "\(self.parent.viewModel.determineDailyAvailabilities(given: dateComponents)) left"
                 view.font = UIFont.systemFont(ofSize: 11)
-                view.textColor = .lightGray
+                view.textColor = .systemCyan
                 return view
             }
         }
                 
         func dateSelection(_ selection: UICalendarSelectionSingleDate, didSelectDate dateComponents: DateComponents?) {
-      
+            parent.viewModel.areHoursDisplayed = true
         }
         
         func dateSelection(_ selection: UICalendarSelectionSingleDate, canSelectDate dateComponents: DateComponents?) -> Bool {
-            parent.viewModel.canSelectWeekdays(with: dateComponents)
+            parent.viewModel.populateSelectableDates(given: dateComponents)
         }
     }
 }

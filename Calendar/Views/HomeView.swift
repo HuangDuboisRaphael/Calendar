@@ -8,11 +8,17 @@
 import SwiftUI
 
 struct HomeView: View {
+    @StateObject private var viewModel = CalendarPlanningViewModel()
+    
     var body: some View {
         NavigationStack {
             ScrollView {
-                CalendarView()
-                    .padding(.horizontal, 10)
+                CalendarView(viewModel: viewModel)
+                
+                if viewModel.areHoursDisplayed {
+                    Color.black
+                }
+                
             }.navigationTitle("Calendar View")
         }
     }
