@@ -16,7 +16,7 @@ final class CalendarPlanningViewModel: ObservableObject {
     
     var calendarStartingDate: Date {
         switch calendarPlanning.planningOption {
-        case .weekly, .weeklyCustom:
+        case .weekly:
             return calendarPlanning.weeklyStartingDate == nil ? Date() : calendarPlanning.weeklyStartingDate?.mapToDate() ?? Date()
         case .daily:
             return calendarPlanning.dailyPlanning.determineCalendarDates().startingDate
@@ -25,7 +25,7 @@ final class CalendarPlanningViewModel: ObservableObject {
     
     var calendarEndingDate: Date {
         switch calendarPlanning.planningOption {
-        case .weekly, .weeklyCustom:
+        case .weekly:
             return calendarPlanning.weeklyEndingDate == nil ? calendar.date(byAdding: .year, value: 2, to: Date()) ?? Date() : calendarPlanning.weeklyEndingDate?.mapToDate() ?? Date()
         case .daily:
             return calendarPlanning.dailyPlanning.determineCalendarDates().endingDate
@@ -34,136 +34,97 @@ final class CalendarPlanningViewModel: ObservableObject {
     
     init() {
         // Fetch data
-        self.calendarPlanning = CalendarPlanning.dailyExample
+        self.calendarPlanning = CalendarPlanning.weeklyExample
     }
     
-    func populateSelectableDates(given dateComponents: DateComponents?) -> Bool {
+    func populateCalendar(given dateComponents: DateComponents?) -> Bool {
+        guard let dateComponents = dateComponents, let date = dateComponents.date else {
+            return false
+        }
         switch calendarPlanning.planningOption {
         case .weekly:
-            return populateWeeklyOption(dateComponents)
-        case .weeklyCustom:
-            return populateWeeklyCustomOption(dateComponents)
+            return populateWeeklyCalendar(with: date)
         case .daily:
-            return populateDailyOption(dateComponents)
+            return populateDailyCalendar(with: date)
         }
     }
     
-    private func populateWeeklyOption(_ dateComponents: DateComponents?) -> Bool {
-        guard let dateComponents = dateComponents, let date = dateComponents.date else {
-            return false
+    private func populateWeeklyCalendar(with date: Date) -> Bool {
+        guard let _ = calendarPlanning.weeklyModifiedDates else {
+            return populateWeeklyCalendarWithoutModifiedDates(date: date)
         }
-        let selectable = calendar.dateComponents([.weekday], from: date)
-        return getWeeklySelectableDateComponents().contains { $0 == selectable } ? true : false
-    }
-    
-    private func populateWeeklyCustomOption(_ dateComponents: DateComponents?) -> Bool {
-        guard let dateComponents = dateComponents, let date = dateComponents.date else {
-            return false
-        }
-    
-        let selectable = calendar.dateComponents([.weekday], from: date)
-        let removable = calendar.dateComponents([.year, .month, .day], from: date)
+
+        var selectableDateComponents = transformWeeklyToDailyDateComponents(date: date)
+        let modifiedDateComponents = sortModifiedDateComponents()
         
-        let firstCondition = getWeeklySelectableDateComponents().contains { $0 == selectable }
-        let secondCondition = !getWeeklyRemovableDateComponents().contains { $0 == removable }
-        
-        return firstCondition && secondCondition ? true : false
-    }
-    
-    private func populateDailyOption(_ dateComponents: DateComponents?) -> Bool {
-        guard let dateComponents = dateComponents, let date = dateComponents.date else {
-            return false
+        // If predifined weekday components doesn't contain selectable modified dates components, add it in the selectable array.
+        for component in modifiedDateComponents.selectable {
+            if !selectableDateComponents.contains(component) {
+                selectableDateComponents.append(component)
+            }
         }
-        let selectable = calendar.dateComponents([.year, .month, .day], from: date)
-        return getDailySelectableDateComponents().contains { $0 == selectable } ? true : false
+        
+        let dateComponents = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
+        let selectable = selectableDateComponents.contains { $0 == dateComponents }
+        let removable = !modifiedDateComponents.removable.contains { $0 == dateComponents }
+        
+        return selectable && removable ? true : false
     }
     
-    private func getWeeklySelectableDateComponents() -> [DateComponents] {
+    private func populateWeeklyCalendarWithoutModifiedDates(date: Date) -> Bool {
         guard let weeklyPlanning = calendarPlanning.weeklyPlanning else {
-            return []
+            return false
         }
         
-        var selectableDateComponents: [DateComponents] = []
+        var array: [DateComponents] = []
         
         for (key, value) in weeklyPlanning {
             if !value.isEmpty {
                 var dateComponents = DateComponents()
                 dateComponents.weekday = key
-                selectableDateComponents.append(dateComponents)
+                array.append(dateComponents)
             }
         }
-        return selectableDateComponents
+        let dateComponents = calendar.dateComponents([.weekday], from: date)
+        return array.contains { $0 == dateComponents } ? true : false
     }
     
-    private func getWeeklyRemovableDateComponents() -> [DateComponents] {
-        guard let weeklyModifiedDates = calendarPlanning.weeklyModifiedDates else {
-            return []
+    // To tranform only weekday date components to complete one to identify if user has added dates on their predifined not working weekdays.
+    private func transformWeeklyToDailyDateComponents(date: Date) -> [DateComponents] {
+        var array: [DateComponents] = []
+        let dateComponents = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
+        if calendarPlanning.weeklyPlanning.determineWeekdays().contains(dateComponents.weekday ?? 0) {
+            array.append(dateComponents)
         }
+        return array
+    }
+    
+    // To sort the modified dates dictionary into selectable and removable dates components to future display on calendar.
+    private func sortModifiedDateComponents() -> (selectable: [DateComponents], removable: [DateComponents]) {
+        var selectableDateComponents: [DateComponents] = []
         var removableDateComponents: [DateComponents] = []
         
-        for (key, value) in weeklyModifiedDates {
-            var dateComponents = DateComponents()
-            if value.isEmpty {
-                let date = key.splitDate()
-                dateComponents.year = date.year
-                dateComponents.month = date.month
-                dateComponents.day = date.day
-                removableDateComponents.append(dateComponents)
+        for (key, value) in calendarPlanning.weeklyModifiedDates! {
+            if !value.isEmpty {
+                selectableDateComponents.append(key.mapToWeekdayDateComponents())
+            } else {
+                removableDateComponents.append(key.mapToWeekdayDateComponents())
             }
         }
-        return removableDateComponents
+        return (selectable: selectableDateComponents, removable: removableDateComponents)
     }
     
-    private func getDailySelectableDateComponents() -> [DateComponents] {
+    private func populateDailyCalendar(with date: Date) -> Bool {
         guard let weeklyPlanning = calendarPlanning.dailyPlanning else {
-            return []
-        }
-        
-        var selectableDateComponents: [DateComponents] = []
-        
-        for key in weeklyPlanning.keys {
-            var dateComponents = DateComponents()
-            let date = key.splitDate()
-            dateComponents.year = date.year
-            dateComponents.month = date.month
-            dateComponents.day = date.day
-            selectableDateComponents.append(dateComponents)
-        }
-        return selectableDateComponents
-    }
-    
-    func isDateInsideTimeInterval(given dateComponents: DateComponents) -> Bool {
-        guard let otherDate = dateComponents.date else {
             return false
         }
-        let startingDateComparison = calendar.compare(calendarStartingDate, to: otherDate, toGranularity: .day)
-        let endingDateComparison = calendar.compare(calendarEndingDate, to: otherDate, toGranularity: .day)
+        var array: [DateComponents] = []
         
-        let firstCondition = startingDateComparison == .orderedAscending || startingDateComparison == .orderedSame
-        let secondCondition = endingDateComparison == .orderedDescending || endingDateComparison == .orderedSame
-       
-        return firstCondition && secondCondition ? true : false
-    }
-    
-    func determineDailyAvailabilities(given dateComponents: DateComponents) -> Int {
-        guard let date = dateComponents.date else {
-            return 0
+        for key in weeklyPlanning.keys {
+            array.append(key.mapToDailyDateComponents())
         }
         
-        switch calendarPlanning.planningOption {
-        case .weekly, .weeklyCustom:
-           guard let weeklyPlanning = calendarPlanning.weeklyPlanning,
-                 let weekday = dateComponents.weekday else {
-                return 0
-            }
-            let dateComponents = calendar.dateComponents([.weekday], from: date)
-            return weeklyPlanning[weekday]?.count ?? 0
-        case.daily:
-            guard let dailyPlanning = calendarPlanning.dailyPlanning else {
-                 return 0
-             }
-            let dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
-            return dailyPlanning[dateComponents.mapToString()]?.count ?? 0
-        }
+        let dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
+        return array.contains { $0 == dateComponents } ? true : false
     }
 }

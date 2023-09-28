@@ -8,16 +8,16 @@
 import Foundation
 
 extension String {
-    func splitDate() -> (day: Int, month: Int, year: Int) {
-        let dateComponents = self.split(separator: "/")
-        
-        guard let day = Int(dateComponents[0]),
-              let month = Int(dateComponents[1]),
-              let year = Int(dateComponents[2]) else {
-            return (0, 0, 0)
-        }
-        
-        return (day, month, year)
+    func mapToWeekdayDateComponents() -> DateComponents {
+        let date = self.mapToDate()
+        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .weekday], from: date)
+        return dateComponents
+    }
+    
+    func mapToDailyDateComponents() -> DateComponents {
+        let date = self.mapToDate()
+        let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return dateComponents
     }
     
     func mapToDate() -> Date {

@@ -10,21 +10,21 @@ import SwiftUI
 struct CalendarPlanning {
     enum PlanningOption {
         case weekly
-        case weeklyCustom
         case daily
     }
     
     var planningOption: CalendarPlanning.PlanningOption
     var weeklyPlanning: Dictionary<Int, [String]>?
-    var weeklyModifiedDates: Dictionary<String, [String]>?
     var weeklyStartingDate: String?
     var weeklyEndingDate: String?
+    var weeklyModifiedDates: Dictionary<String, [String]>?
     var dailyPlanning: Dictionary<String, [String]>?
+    var bookedDates: Dictionary<String, [String]>?
     var durationSession: Double
     
     static var weeklyExample: CalendarPlanning {
         CalendarPlanning.init(
-            planningOption: .weeklyCustom,
+            planningOption: .weekly,
             weeklyPlanning: [2: ["14:00 PM", "16:00 PM", "18:00 PM"],
                      3: ["16:00 PM", "18:00 PM"],
                      4: [],
@@ -33,12 +33,13 @@ struct CalendarPlanning {
                      7: [],
                      1: ["15:00 PM"],
                     ],
-            weeklyModifiedDates: ["26/09/2023": ["15:00 PM", "17:00 PM"],
-                                  "30/09/2023": ["09:00 AM", "14:00 PM"],
-                                  "08/10/2023": []
-                                 ],
-//            weeklyStartingDate: "30/11/2023",
+//            weeklyStartingDate: "30/09/2023",
 //            weeklyEndingDate: "11/12/2023",
+            weeklyModifiedDates: ["25/10/2023": ["15:00 PM", "17:00 PM"],
+                                  "30/09/2023": ["09:00 AM", "14:00 PM"],
+                                  "08/10/2023": [],
+                                  "07/10/2023": ["09:00 AM", "14:00 PM"]
+                                 ],
             durationSession: 120.0)
     }
     
