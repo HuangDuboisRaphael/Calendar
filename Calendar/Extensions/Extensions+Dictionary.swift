@@ -29,11 +29,8 @@ extension Dictionary<String, [String]>? {
     }
 }
 
-extension Dictionary<Int, [String]>? {
+extension Dictionary<Int, [String]> {
     func determineWeekdays() -> [Int] {
-        guard let self = self else {
-            return []
-        }
         var weekdays: [Int] = []
         for (key, value) in self {
             if !value.isEmpty {

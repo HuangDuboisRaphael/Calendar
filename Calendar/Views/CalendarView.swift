@@ -49,7 +49,12 @@ struct CalendarView: UIViewRepresentable {
         }
                 
         func dateSelection(_ selection: UICalendarSelectionSingleDate, didSelectDate dateComponents: DateComponents?) {
+            guard let dateComponents = dateComponents, let date = dateComponents.date else {
+                return
+            }
             parent.viewModel.areHoursDisplayed = true
+            let correspondingDateComponents = Calendar.current.dateComponents([.year, .month, .day, .weekday], from: date)
+            print(parent.viewModel.selectableDates[correspondingDateComponents])
         }
         
         func dateSelection(_ selection: UICalendarSelectionSingleDate, canSelectDate dateComponents: DateComponents?) -> Bool {
