@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension String {
+extension String {    
     func mapToWeekdayDateComponents() -> DateComponents {
         let date = self.mapToDate()
         let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .weekday], from: date)
