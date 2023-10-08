@@ -8,52 +8,36 @@
 import SwiftUI
 import Combine
 
-// MARK: - Component
+// MARK: - Stored properties and initialization
+@MainActor
 final class CalendarViewModel: ObservableObject {
-    // Published properties
     @Published var calendarPlanning: CalendarPlanning?
-    @Published var startDate = Date()
-    @Published var endDate = Date()
-    @Published var startOfMonth = Date()
+    @Published var startingDay = Date()
+    @Published var endingDay = Date()
+    @Published var startingMonth = Date()
     @Published var selectedDate: Date?
     @Published var canLoadCalendar = false
        
-    // Stored properties
     let calendar = Calendar.current
-    let daysInWeek = 7
+    static let daysInWeek = 7
     private var cancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
     private let service: CalendarPlanningService
     
-    // Computed properties
-    var calendarEndDate: Date {
-        calendar.date(byAdding: .year, value: 2, to: startDate) ?? .distantFuture
-    }
-    
-    var makeDays: [Date] {
-        guard let monthInterval = calendar.dateInterval(of: .month, for: startOfMonth),
-              let monthFirstWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start),
-              let monthLastWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.end - 1)
-        else {
-            return []
-        }
-        let dateInterval = DateInterval(start: monthFirstWeek.start, end: monthLastWeek.end)
-        return calendar.generateDays(for: dateInterval)
-    }
-    
-    // Initialization
     init(service: CalendarPlanningService = CalendarPlanningService(type: .weekly)) {
         self.service = service
         addSubscribers()
     }
-    
-    // Subscribers methods
-    private func addSubscribers() {
+}
+
+// MARK: - Subcribers methods
+private extension CalendarViewModel {
+    func addSubscribers() {
         addSingleSubscriptionSubscriber()
         addAutoRefreshSubscriber()
     }
     
-    private func addSingleSubscriptionSubscriber() {
+    func addSingleSubscriptionSubscriber() {
         cancellable = service.$calendarPlanning
             .dropFirst()
             .sink { [weak self] calendarPlanning in
@@ -61,55 +45,65 @@ final class CalendarViewModel: ObservableObject {
                 self.calendarPlanning = calendarPlanning
                 switch calendarPlanning.planningOption {
                 case .weekly:
-                    self.startDate = calendarPlanning.weeklyStartDate == nil ? Date() : calendarPlanning.weeklyStartDate!.mapToDate()
-                    self.startOfMonth = startDate.startOfMonth(using: calendar)
-                    self.endDate = calendarPlanning.weeklyEndDate == nil ? calendarEndDate : calendarPlanning.weeklyEndDate!.mapToDate()
+                    self.startingDay = calendarPlanning.weeklyStartDate == nil ? Date() : calendarPlanning.weeklyStartDate!.mapToDate()
+                    self.startingMonth = startingDay.startOfMonth(using: calendar)
+                    self.endingDay = calendarPlanning.weeklyEndDate == nil ? calendarEndDate : calendarPlanning.weeklyEndDate!.mapToDate()
                 case .daily:
-                    self.startDate = calendarPlanning.dailyPlanning.determineCalendarDates().start
-                    self.startOfMonth = startDate.startOfMonth(using: calendar)
-                    self.endDate = calendarPlanning.dailyPlanning.determineCalendarDates().end
+                    self.startingDay = calendarPlanning.dailyPlanning.determineCalendarDates().start
+                    self.startingMonth = startingDay.startOfMonth(using: calendar)
+                    self.endingDay = calendarPlanning.dailyPlanning.determineCalendarDates().end
                 }
                 self.canLoadCalendar = true
                 self.cancellable?.cancel()
             }
     }
     
-    private func addAutoRefreshSubscriber() {
+    func addAutoRefreshSubscriber() {
         service.$calendarPlanning
             .dropFirst(2)
-            .sink { [weak self] calendarPlanning in
-//                guard let self = self else { return }
-//                self.calendarPlanning = calendarPlanning
-//                switch calendarPlanning.planningOption {
-//                case .weekly:
-//                    self.startDate = calendarPlanning.weeklyStartDate == nil ? Date() : calendarPlanning.weeklyStartDate!.mapToDate()
-//                    self.startOfMonth = startDate.startOfMonth(using: calendar)
-//                    self.endDate = calendarPlanning.weeklyEndDate == nil ?
-//                    self.calendar.date(byAdding: .year, value: 2, to: Date()) ?? Date() : calendarPlanning.weeklyEndDate!.mapToDate()
-//                case .daily:
-//                    self.startDate = calendarPlanning.dailyPlanning.determineCalendarDates().start
-//                    self.startOfMonth = startDate.startOfMonth(using: calendar)
-//                    self.endDate = calendarPlanning.dailyPlanning.determineCalendarDates().end
-//                }
-            }.store(in: &cancellables)
+            .sink { calendarPlanning in }.store(in: &cancellables)
+    }
+}
+
+// MARK: - Calendar related computed properties/logic methods
+extension CalendarViewModel {
+    
+    var calendarEndDate: Date {
+        calendar.date(byAdding: .year, value: 2, to: startingDay) ?? .distantFuture
     }
     
-    // Logic methods
-    func determineNewStartOfMonth(byAdding value: Int, comparing date: Date, comparison: ComparisonResult) {
-        guard let newDate = calendar.date(
-            byAdding: .month,
-            value: value,
-            to: startOfMonth
-        ) else {
-            return
+    var calendarMonths: [Date] {
+        guard let lastMonth = calendar.date(byAdding: .year, value: 2, to: startingMonth) else {
+            return []
         }
-        if calendar.compare(date, to: newDate, toGranularity: .month) != comparison {
-            startOfMonth = newDate
+        let dateInterval = DateInterval(start: startingMonth, end: lastMonth)
+        return calendar.generateDates(for: dateInterval, type: .month)
+    }
+    
+    var firstSevenDaysOfTheMonth: ArraySlice<Date> {
+        daysForStartingMonth.prefix(CalendarViewModel.daysInWeek)
+    }
+    
+    private var daysForStartingMonth: [Date] {
+        calendar.generateDates(for: determineDateInterval(for: startingMonth), type: .day)
+    }
+    
+    func makeDays(for month: Date) -> [Date] {
+        calendar.generateDates(for: determineDateInterval(for: month), type: .day)
+    }
+    
+    private func determineDateInterval(for month: Date) -> DateInterval {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: month),
+              let monthFirstWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start),
+              let monthLastWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.end - 1)
+        else {
+            return DateInterval()
         }
+        return DateInterval(start: monthFirstWeek.start, end: monthLastWeek.end)
     }
     
     func isOnCalendarEdges<T>(comparing date: Date, trueValue: T, falseValue: T) -> T {
-        calendar.compare(date, to: startOfMonth, toGranularity: .month) == .orderedSame ? trueValue : falseValue
+        calendar.compare(date, to: startingMonth, toGranularity: .month) == .orderedSame ? trueValue : falseValue
     }
 }
 
@@ -121,14 +115,27 @@ private extension Date {
 }
 
 private extension Calendar {
-    func generateDays(for dateInterval: DateInterval) -> [Date] {
-        generateDates(
-            for: dateInterval,
-            matching: dateComponents([.hour, .minute, .second], from: dateInterval.start)
-        )
+    enum DateComponentsType {
+        case month
+        case day
     }
     
-    func generateDates(for dateInterval: DateInterval, matching components: DateComponents) -> [Date] {
+    func generateDates(for dateInterval: DateInterval, type: DateComponentsType) -> [Date] {
+        switch type {
+        case .month:
+            return generateDates(
+                for: dateInterval,
+                matching: dateComponents([.day], from: dateInterval.start)
+            )
+        case .day:
+            return generateDates(
+                for: dateInterval,
+                matching: dateComponents([.hour, .minute, .second], from: dateInterval.start)
+            )
+        }
+    }
+    
+    private func generateDates(for dateInterval: DateInterval, matching components: DateComponents) -> [Date] {
         var dates = [dateInterval.start]
 
         enumerateDates(
