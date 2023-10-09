@@ -11,10 +11,8 @@ import Combine
 // MARK: - Stored properties and initialization
 @MainActor
 final class CalendarViewModel: ObservableObject {
-    @Published var calendarPlanning: CalendarPlanning?
-    @Published var startingDay = Date()
-    @Published var endingDay = Date()
-    @Published var startingMonth = Date()
+    @Published var bookedPerformances: [BookedPerformance] = []
+    @Published var bookedDates: [Date] = []
     @Published var selectedDate: Date?
     @Published var canLoadCalendar = false
        
@@ -24,7 +22,7 @@ final class CalendarViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let service: CalendarPlanningService
     
-    init(service: CalendarPlanningService = CalendarPlanningService(type: .weekly)) {
+    init(service: CalendarPlanningService = CalendarPlanningService()) {
         self.service = service
         addSubscribers()
     }
@@ -38,42 +36,44 @@ private extension CalendarViewModel {
     }
     
     func addSingleSubscriptionSubscriber() {
-        cancellable = service.$calendarPlanning
+        cancellable = service.$bookedPerformances
             .dropFirst()
-            .sink { [weak self] calendarPlanning in
+            .sink { [weak self] performances in
                 guard let self = self else { return }
-                self.calendarPlanning = calendarPlanning
-                switch calendarPlanning.planningOption {
-                case .weekly:
-                    self.startingDay = calendarPlanning.weeklyStartDate == nil ? Date() : calendarPlanning.weeklyStartDate!.mapToDate()
-                    self.startingMonth = startingDay.startOfMonth(using: calendar)
-                    self.endingDay = calendarPlanning.weeklyEndDate == nil ? calendarEndDate : calendarPlanning.weeklyEndDate!.mapToDate()
-                case .daily:
-                    self.startingDay = calendarPlanning.dailyPlanning.determineCalendarDates().start
-                    self.startingMonth = startingDay.startOfMonth(using: calendar)
-                    self.endingDay = calendarPlanning.dailyPlanning.determineCalendarDates().end
-                }
+                self.bookedPerformances = performances
+                self.bookedDates = bookedPerformances.map { $0.date.mapToDate() }
                 self.canLoadCalendar = true
                 self.cancellable?.cancel()
             }
     }
     
     func addAutoRefreshSubscriber() {
-        service.$calendarPlanning
+        service.$bookedPerformances
             .dropFirst(2)
-            .sink { calendarPlanning in }.store(in: &cancellables)
+            .sink { bookedDates in }.store(in: &cancellables)
     }
 }
 
 // MARK: - Calendar related computed properties/logic methods
 extension CalendarViewModel {
     
+    var startingDate: Date {
+        guard let startingDate = bookedDates.min() else {
+            return Date()
+        }
+        return startingDate
+    }
+    
+    var startingMonth: Date {
+        startingDate.startOfMonth(using: calendar)
+    }
+    
     var calendarEndDate: Date {
-        calendar.date(byAdding: .year, value: 2, to: startingDay) ?? .distantFuture
+        calendar.date(byAdding: .year, value: 2, to: startingDate) ?? .distantFuture
     }
     
     var calendarMonths: [Date] {
-        guard let lastMonth = calendar.date(byAdding: .year, value: 2, to: startingMonth) else {
+        guard let lastMonth = calendar.date(byAdding: .year, value: 1, to: startingMonth) else {
             return []
         }
         let dateInterval = DateInterval(start: startingMonth, end: lastMonth)
@@ -100,10 +100,6 @@ extension CalendarViewModel {
             return DateInterval()
         }
         return DateInterval(start: monthFirstWeek.start, end: monthLastWeek.end)
-    }
-    
-    func isOnCalendarEdges<T>(comparing date: Date, trueValue: T, falseValue: T) -> T {
-        calendar.compare(date, to: startingMonth, toGranularity: .month) == .orderedSame ? trueValue : falseValue
     }
 }
 
@@ -152,27 +148,5 @@ private extension Calendar {
             dates.append(date)
         }
         return dates
-    }
-}
-
-private extension Dictionary<String, [String]>? {
-    func determineCalendarDates() -> DateInterval {
-        guard let self = self else {
-            return DateInterval(start: Date(), end: Date())
-        }
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "dd/MM/yyyy"
-
-        var dates: [Date] = []
-        for date in self.keys {
-            if let date = dateFormatter.date(from: date) {
-                dates.append(date)
-            }
-        }
-        guard let startDate = dates.min(), let endDate = dates.max() else {
-            return DateInterval(start: Date(), end: Date())
-        }
-        return DateInterval(start: startDate, end: endDate)
     }
 }

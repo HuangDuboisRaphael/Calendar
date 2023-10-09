@@ -1,0 +1,30 @@
+[
+  {
+    "date": "23/10/2023",
+    "hour": "14:00",
+    "duration": 60.0,
+    "pricing": 30.0,
+    "privateNote": "Please confirm with the client."
+  },
+  {
+    "date": "01/11/2023",
+    "hour": "09:00",
+    "duration": 60.0,
+    "pricing": 40.0,
+    "privateNote": null
+  },
+  {
+    "date": "03/12/2023",
+    "hour": "13:00",
+    "duration": 60.0,
+    "pricing": 35.0,
+    "privateNote": null
+  },
+  {
+    "date": "25/12/2023",
+    "hour": "19:00",
+    "duration": 120.0,
+    "pricing": 10.0,
+    "privateNote": "VIP client, handle with care."
+  }
+]

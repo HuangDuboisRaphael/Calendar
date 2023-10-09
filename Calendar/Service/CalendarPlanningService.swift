@@ -10,17 +10,13 @@ import Combine
 
 final class CalendarPlanningService {
     
-    @Published var calendarPlanning = CalendarPlanning(planningOption: .weekly, durationSession: 0.0)
+    @Published var bookedPerformances: [BookedPerformance] = []
     
-    private let type: CalendarPlanning.PlanningType
-    private let forResource: String
     private let refreshInterval: TimeInterval = 5.0
     private var cancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
     
-    init(type: CalendarPlanning.PlanningType) {
-        self.type = type
-        forResource = type == .weekly ? "CalendarPlanningWeekly" : "CalendarPlanningDaily"
+    init() {
         addSubcribers()
     }
     
@@ -30,12 +26,11 @@ final class CalendarPlanningService {
     }
     
     private func fetchAndSetCalendarPlanning() {
-        cancellable = URLSession.shared.dataTaskPublisher(for: Bundle.main.url(forResource: forResource, withExtension: "json")!)
+        cancellable = URLSession.shared.dataTaskPublisher(for: Bundle.main.url(forResource: "BookedDates", withExtension: "json")!)
             .subscribe(on: DispatchQueue.global(qos: .default))
             .map { $0.data }
             .receive(on: DispatchQueue.main)
-            .decode(type: CalendarPlanningResponse.self, decoder: JSONDecoder())
-            .map { $0.mapToCalendarPlanning() }
+            .decode(type: [BookedPerformance].self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .finished:
@@ -43,9 +38,9 @@ final class CalendarPlanningService {
                 case.failure(let error):
                     print(error)
                 }
-            }, receiveValue: { [weak self] value in
+            }, receiveValue: { [weak self] performances in
                 guard let self = self else { return }
-                self.calendarPlanning = value
+                self.bookedPerformances = performances
                 self.cancellable?.cancel()
             })
     }
@@ -54,13 +49,12 @@ final class CalendarPlanningService {
         Timer
             .publish(every: refreshInterval, on: .main, in: .common)
             .autoconnect()
-            .flatMap { [weak self] _ in
-                URLSession.shared.dataTaskPublisher(for: Bundle.main.url(forResource: self?.forResource, withExtension: "json")!)
+            .flatMap { _ in
+                URLSession.shared.dataTaskPublisher(for: Bundle.main.url(forResource: "BookedDates", withExtension: "json")!)
                     .subscribe(on: DispatchQueue.global(qos: .default))
                     .map { $0.data }
                     .receive(on: DispatchQueue.main)
-                    .decode(type: CalendarPlanningResponse.self, decoder: JSONDecoder())
-                    .map { $0.mapToCalendarPlanning() }
+                    .decode(type: [BookedPerformance].self, decoder: JSONDecoder())
             }
             .sink(receiveCompletion: { completion in
                 switch completion {
@@ -69,8 +63,8 @@ final class CalendarPlanningService {
                 case.failure(let error):
                     print(error)
                 }
-            }, receiveValue: { [weak self] value in
-                self?.calendarPlanning = value
+            }, receiveValue: { [weak self] performances in
+                self?.bookedPerformances = performances
             }).store(in: &cancellables)
     }
 }

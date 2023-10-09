@@ -9,7 +9,7 @@ import SwiftUI
 
 // MARK: - Calendar
 struct CalendarView<Content>: View where Content: View {
-    @ObservedObject var viewModel: CalendarViewModel
+    let viewModel: CalendarViewModel
     let content: (Date, Date) -> Content
     
     init(viewModel: CalendarViewModel, @ViewBuilder content: @escaping (Date, Date) -> Content) {
@@ -26,7 +26,7 @@ struct CalendarView<Content>: View where Content: View {
 
 // MARK: - Weekday header
 struct WeekDayHeaderView: View {
-    @ObservedObject var viewModel: CalendarViewModel
+    let viewModel: CalendarViewModel
     
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(), count: CalendarViewModel.daysInWeek)) {
@@ -41,7 +41,7 @@ struct WeekDayHeaderView: View {
 
 // MARK: - Calendar scroll view
 struct CalendarScrollView<Content>: View where Content: View {
-    @ObservedObject var viewModel: CalendarViewModel
+    let viewModel: CalendarViewModel
     let content: (Date, Date) -> Content
     
     init(viewModel: CalendarViewModel, @ViewBuilder content: @escaping (Date, Date) -> Content) {

@@ -9,7 +9,7 @@ import SwiftUI
 
 // MARK: - Root
 struct CalendarUserView: View {
-    @StateObject private var viewModel = CalendarViewModel()
+    @StateObject private var viewModel = CalendarViewModel(service: CalendarPlanningService())
 
     var body: some View {
         NavigationStack {
@@ -17,7 +17,7 @@ struct CalendarUserView: View {
                 VStack {
                     CalendarView(viewModel: viewModel) { month, date in
                         if viewModel.calendar.isDate(date, equalTo: month, toGranularity: .month) {
-                            if viewModel.calendar.compare(viewModel.startingDay, to: date, toGranularity: .day) == .orderedDescending || viewModel.calendar.compare(viewModel.endingDay, to: date, toGranularity: .day) == .orderedAscending {
+                            if !viewModel.bookedDates.contains(date) {
                                 Text("00")
                                     .padding(8)
                                     .foregroundColor(.clear)
@@ -29,11 +29,7 @@ struct CalendarUserView: View {
                                     )
                             } else {
                                 Button {
-                                    withAnimation(.easeInOut(duration: 0.1)) {
-                                        DispatchQueue.main.async {
-                                            viewModel.selectedDate = viewModel.selectedDate == date ? nil : date
-                                        }
-                                    }
+                                    viewModel.selectedDate = viewModel.selectedDate == date ? nil : date
                                 } label: {
                                     Text("00")
                                         .padding(8)
@@ -47,7 +43,7 @@ struct CalendarUserView: View {
                                                 .font(.system(size: 14))
                                                 .foregroundColor(.black)
                                         )
-                                }
+                                }.buttonStyle(.plain)
                             }
                         } else {
                             Text("00")

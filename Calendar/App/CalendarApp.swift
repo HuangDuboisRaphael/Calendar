@@ -8,7 +8,9 @@
 import SwiftUI
 
 @main
-struct CalendarApp: App {    
+struct CalendarApp: App {
+    @State private var test = false
+    
     var body: some Scene {
         WindowGroup {
             CalendarUserView()

@@ -8,18 +8,6 @@
 import Foundation
 
 extension String {    
-    func mapToWeekdayDateComponents() -> DateComponents {
-        let date = self.mapToDate()
-        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .weekday], from: date)
-        return dateComponents
-    }
-    
-    func mapToDailyDateComponents() -> DateComponents {
-        let date = self.mapToDate()
-        let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        return dateComponents
-    }
-    
     func mapToDate() -> Date {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "dd/MM/yyyy"
