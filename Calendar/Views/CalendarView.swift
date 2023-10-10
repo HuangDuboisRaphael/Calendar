@@ -8,11 +8,11 @@
 import SwiftUI
 
 // MARK: - Calendar
-struct CalendarView<Content>: View where Content: View {
-    let viewModel: CalendarViewModel
+struct CalendarView<ViewModel: UserCalendarViewModelRepresentable, Content: View>: View {
+    let viewModel: ViewModel
     let content: (Date, Date) -> Content
     
-    init(viewModel: CalendarViewModel, @ViewBuilder content: @escaping (Date, Date) -> Content) {
+    init(viewModel: ViewModel, @ViewBuilder content: @escaping (Date, Date) -> Content) {
         self.viewModel = viewModel
         self.content = content
     }
@@ -25,11 +25,11 @@ struct CalendarView<Content>: View where Content: View {
 }
 
 // MARK: - Weekday header
-struct WeekDayHeaderView: View {
-    let viewModel: CalendarViewModel
+struct WeekDayHeaderView<ViewModel: UserCalendarViewModelRepresentable>: View {
+    let viewModel: ViewModel
     
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(), count: CalendarViewModel.daysInWeek)) {
+        LazyVGrid(columns: Array(repeating: GridItem(), count: viewModel.daysInWeek)) {
             ForEach(viewModel.firstSevenDaysOfTheMonth, id: \.self) { date in
                 Text(date.mapToString(.weekday))
                     .foregroundColor(.yellow)
@@ -40,11 +40,11 @@ struct WeekDayHeaderView: View {
 }
 
 // MARK: - Calendar scroll view
-struct CalendarScrollView<Content>: View where Content: View {
-    let viewModel: CalendarViewModel
+struct CalendarScrollView<ViewModel: UserCalendarViewModelRepresentable, Content: View>: View {
+    let viewModel: ViewModel
     let content: (Date, Date) -> Content
     
-    init(viewModel: CalendarViewModel, @ViewBuilder content: @escaping (Date, Date) -> Content) {
+    init(viewModel: ViewModel, @ViewBuilder content: @escaping (Date, Date) -> Content) {
         self.viewModel = viewModel
         self.content = content
     }
@@ -62,7 +62,7 @@ struct CalendarScrollView<Content>: View where Content: View {
                                     Spacer()
                                 },
                             content: {
-                                LazyVGrid(columns: Array(repeating: GridItem(), count: CalendarViewModel.daysInWeek)) {
+                                LazyVGrid(columns: Array(repeating: GridItem(), count: viewModel.daysInWeek)) {
                                     ForEach(viewModel.makeDays(for: month), id: \.self) { date in
                                         content(month, date)
                                     }

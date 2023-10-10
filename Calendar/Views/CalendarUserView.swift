@@ -8,14 +8,18 @@
 import SwiftUI
 
 // MARK: - Root
-struct CalendarUserView: View {
-    @StateObject private var viewModel = CalendarViewModel(service: CalendarPlanningService())
+struct CalendarUserView<ViewModel: UserCalendarViewModelRepresentable>: View {
+    @StateObject var viewModel: ViewModel
+    
+    init(viewModel: ViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
         NavigationStack {
             if viewModel.canLoadCalendar {
                 VStack {
-                    CalendarView(viewModel: viewModel) { month, date in
+                    CalendarView(viewModel: viewModel as! UserCalendarViewModel) { month, date in
                         if viewModel.calendar.isDate(date, equalTo: month, toGranularity: .month) {
                             if !viewModel.bookedDates.contains(date) {
                                 Text("00")
@@ -50,11 +54,14 @@ struct CalendarUserView: View {
                                 .foregroundColor(.clear)
                         }
                     }
-                }.frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity)
                 .padding(16)
                 .navigationTitle("Calendar")
                 Spacer()
             }
+        }.onDisappear {
+            viewModel.task?.cancel()
         }
     }
 }

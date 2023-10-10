@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct BookablePerformance: Decodable {
+struct BookableArtSession: Decodable {
     let date: String
     let hours: [String]
     let duration: Double

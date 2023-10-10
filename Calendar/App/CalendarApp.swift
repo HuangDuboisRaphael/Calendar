@@ -13,7 +13,7 @@ struct CalendarApp: App {
     
     var body: some Scene {
         WindowGroup {
-            CalendarUserView()
+            CalendarUserView(viewModel: UserCalendarViewModel())
         }
     }
 }
