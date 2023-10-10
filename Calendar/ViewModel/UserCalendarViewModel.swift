@@ -9,12 +9,11 @@ import SwiftUI
 
 // MARK: - Protocol to conform
 @MainActor
-protocol UserCalendarViewModelRepresentable: ObservableObject {
+protocol UserCalendarViewModelRepresentable: ObservableObject, LoadableObject {
     var task: Task<Void, Never>? { get }
     var bookedArtSession: [BookedArtSession] { get }
     var bookedDates: [Date] { get }
     var selectedDate: Date? { get set }
-    var canLoadCalendar: Bool { get }
     var calendar: Calendar { get }
     var daysInWeek: Int { get }
     var startingDate: Date { get }
@@ -30,11 +29,11 @@ protocol UserCalendarViewModelRepresentable: ObservableObject {
 @MainActor
 final class UserCalendarViewModel: UserCalendarViewModelRepresentable {
     //Protocol published properties
+    @Published var state: LoadingState = .idle
     @Published private(set) var task: Task<Void, Never>?
     @Published private(set) var bookedArtSession: [BookedArtSession] = []
     @Published private(set) var bookedDates: [Date] = []
     @Published var selectedDate: Date?
-    @Published var canLoadCalendar = false
     
     // Protocol computed properties
     var calendar: Calendar { Calendar.current }
@@ -62,29 +61,29 @@ final class UserCalendarViewModel: UserCalendarViewModelRepresentable {
     // Initialization
     init(service: CalendarPlanningServiceRepresentable = CalendarPlanningService()) {
         self.service = service
-        launchBookedArtSessionTask()
     }
     
     // Protocol methods
     func makeDays(for month: Date) -> [Date] {
         calendar.generateDates(for: determineDateInterval(for: month), type: .day)
     }
-}
-
-// MARK: - Asynchronous request
-private extension UserCalendarViewModel {
-    func launchBookedArtSessionTask() {
+    
+    func makeRequest() {
+        if bookedArtSession.isEmpty {
+            state = .loading
+        }
         task = Task {
             async let request = await service.fetchBookedArtSession()
             do {
                 bookedArtSession = try await request
                 bookedDates = bookedArtSession.map({ $0.date.mapToDate() })
-                canLoadCalendar = true
+                state = .loaded
                 
                 try await Task.sleep(for: .seconds(5))
                 guard !Task.isCancelled else { return }
-                launchBookedArtSessionTask()
+                makeRequest()
             } catch {
+                state = .failed(error)
                 print(error)
             }
         }

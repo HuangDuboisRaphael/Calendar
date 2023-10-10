@@ -18,9 +18,15 @@ struct CalendarView<ViewModel: UserCalendarViewModelRepresentable, Content: View
     }
     
     var body: some View {
-        WeekDayHeaderView(viewModel: viewModel)
-        Divider()
-        CalendarScrollView(viewModel: viewModel, content: content)
+        AsyncContentView(source: viewModel) {
+            VStack{
+                WeekDayHeaderView(viewModel: viewModel)
+                Divider()
+                CalendarScrollView(viewModel: viewModel, content: content)
+                Spacer()
+            }
+        }.frame(maxWidth: .infinity)
+        .padding(16)
     }
 }
 
